@@ -1,0 +1,6 @@
+{
+  "name": "PulseFlow AI — B2B Automation Hub",
+  "description": "Multi-tenant B2B AI workflow automation hub powered by Google Gemini, Firebase Authentication, and Cloud Firestore with English, Portuguese, and Spanish localization.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

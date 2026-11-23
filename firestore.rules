@@ -1,0 +1,177 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global safety net: deny everything by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // -------------------------------------------------------------------------
+    // Reusable Security & Validation Primitives
+    // -------------------------------------------------------------------------
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidLocale(locale) {
+      return locale is string && locale in ['en', 'pt', 'es'];
+    }
+
+    function isValidTemplate(templateId) {
+      return templateId is string && templateId in ['lead_qualification', 'support_triage', 'contract_analysis'];
+    }
+
+    function isDefaultWorkspace(workspaceId) {
+      return workspaceId == 'ws_default';
+    }
+
+    // -------------------------------------------------------------------------
+    // Entity Validation Blueprints
+    // -------------------------------------------------------------------------
+    function isValidWorkspace(data) {
+      return data.keys().hasAll([
+          'workspaceId', 'ownerId', 'name', 'agentName', 'systemInstruction',
+          'businessRules', 'accentColor', 'defaultTemplate', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'workspaceId', 'ownerId', 'name', 'agentName', 'systemInstruction',
+          'businessRules', 'accentColor', 'defaultTemplate', 'createdAt', 'updatedAt'
+        ])
+        && isDefaultWorkspace(data.workspaceId)
+        && isValidId(data.ownerId)
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 100
+        && data.agentName is string && data.agentName.size() >= 1 && data.agentName.size() <= 80
+        && data.systemInstruction is string && data.systemInstruction.size() >= 1 && data.systemInstruction.size() <= 4000
+        && data.businessRules is string && data.businessRules.size() <= 4000
+        && data.accentColor is string && data.accentColor.size() == 7 && data.accentColor.matches('^#[0-9A-Fa-f]{6}$')
+        && isValidTemplate(data.defaultTemplate)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidWorkflowRun(data) {
+      return data.keys().hasAll([
+          'runId', 'workspaceId', 'ownerId', 'templateId', 'locale',
+          'inputTitle', 'inputPayload', 'outputJson', 'status',
+          'latencyMs', 'attempts', 'modelUsed', 'createdAt'
+        ])
+        && data.keys().hasOnly([
+          'runId', 'workspaceId', 'ownerId', 'templateId', 'locale',
+          'inputTitle', 'inputPayload', 'outputJson', 'status',
+          'latencyMs', 'attempts', 'modelUsed', 'createdAt'
+        ])
+        && isValidId(data.runId)
+        && isDefaultWorkspace(data.workspaceId)
+        && isValidId(data.ownerId)
+        && isValidTemplate(data.templateId)
+        && isValidLocale(data.locale)
+        && data.inputTitle is string && data.inputTitle.size() >= 1 && data.inputTitle.size() <= 180
+        && data.inputPayload is map
+        && data.inputPayload.keys().hasAll(['companyOrClient', 'sourceContext', 'rawInput'])
+        && data.inputPayload.keys().hasOnly(['companyOrClient', 'sourceContext', 'rawInput'])
+        && data.inputPayload.companyOrClient is string && data.inputPayload.companyOrClient.size() <= 200
+        && data.inputPayload.sourceContext is string && data.inputPayload.sourceContext.size() <= 500
+        && data.inputPayload.rawInput is string && data.inputPayload.rawInput.size() >= 1 && data.inputPayload.rawInput.size() <= 12000
+        && data.outputJson is map
+        && data.status is string && data.status in ['completed', 'failed']
+        && data.latencyMs is int && data.latencyMs >= 0 && data.latencyMs <= 300000
+        && data.attempts is int && data.attempts >= 1 && data.attempts <= 10
+        && data.modelUsed is string && data.modelUsed.size() >= 1 && data.modelUsed.size() <= 80
+        && data.createdAt is timestamp;
+    }
+
+    function isValidErrorLog(data) {
+      return data.keys().hasAll([
+          'logId', 'workspaceId', 'ownerId', 'endpoint', 'templateId',
+          'errorCode', 'errorMessage', 'attempts', 'inputSummary', 'resolved', 'createdAt'
+        ])
+        && data.keys().hasOnly([
+          'logId', 'workspaceId', 'ownerId', 'endpoint', 'templateId',
+          'errorCode', 'errorMessage', 'attempts', 'inputSummary', 'resolved', 'createdAt'
+        ])
+        && isValidId(data.logId)
+        && isDefaultWorkspace(data.workspaceId)
+        && isValidId(data.ownerId)
+        && data.endpoint is string && data.endpoint.size() >= 1 && data.endpoint.size() <= 120
+        && isValidTemplate(data.templateId)
+        && data.errorCode is string && data.errorCode.size() >= 1 && data.errorCode.size() <= 80
+        && data.errorMessage is string && data.errorMessage.size() >= 1 && data.errorMessage.size() <= 1000
+        && data.attempts is int && data.attempts >= 1 && data.attempts <= 10
+        && data.inputSummary is string && data.inputSummary.size() <= 300
+        && data.resolved is bool
+        && data.createdAt is timestamp;
+    }
+
+    // -------------------------------------------------------------------------
+    // Collection Rules (Open Workspace Mode — No PII Stored)
+    // -------------------------------------------------------------------------
+
+    match /users/{userId} {
+      allow read, write: if false;
+    }
+
+    match /workspaces/{workspaceId} {
+      allow get: if isDefaultWorkspace(workspaceId);
+      allow list: if isDefaultWorkspace(existing().workspaceId);
+      allow create: if isDefaultWorkspace(workspaceId)
+        && isValidWorkspace(incoming())
+        && incoming().workspaceId == workspaceId
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isDefaultWorkspace(workspaceId)
+        && isValidWorkspace(incoming())
+        && incoming().workspaceId == existing().workspaceId
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'name', 'agentName', 'systemInstruction', 'businessRules',
+          'accentColor', 'defaultTemplate', 'updatedAt'
+        ]);
+      allow delete: if false;
+    }
+
+    match /workflow_runs/{runId} {
+      allow get: if isValidId(runId) && isDefaultWorkspace(existing().workspaceId);
+      allow list: if isDefaultWorkspace(resource.data.workspaceId);
+      allow create: if isValidId(runId)
+        && isValidWorkflowRun(incoming())
+        && incoming().runId == runId
+        && incoming().createdAt == request.time
+        && exists(/databases/$(database)/documents/workspaces/$(incoming().workspaceId));
+      allow update: if false;
+      allow delete: if isValidId(runId) && isDefaultWorkspace(existing().workspaceId);
+    }
+
+    match /error_logs/{logId} {
+      allow get: if isValidId(logId) && isDefaultWorkspace(existing().workspaceId);
+      allow list: if isDefaultWorkspace(resource.data.workspaceId);
+      allow create: if isValidId(logId)
+        && isValidErrorLog(incoming())
+        && incoming().logId == logId
+        && incoming().createdAt == request.time
+        && exists(/databases/$(database)/documents/workspaces/$(incoming().workspaceId));
+      allow update: if isValidId(logId)
+        && isDefaultWorkspace(existing().workspaceId)
+        && isValidErrorLog(incoming())
+        && existing().resolved == false
+        && incoming().resolved == true
+        && incoming().logId == existing().logId
+        && incoming().workspaceId == existing().workspaceId
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt
+        && incoming().diff(existing()).affectedKeys().hasOnly(['resolved']);
+      allow delete: if false;
+    }
+  }
+}

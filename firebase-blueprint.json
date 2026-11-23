@@ -1,0 +1,272 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Authenticated user profile storing workspace binding and localization preference.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 254
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "preferredLocale": {
+          "type": "string",
+          "enum": ["en", "pt", "es"]
+        },
+        "defaultWorkspaceId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "email", "displayName", "preferredLocale", "defaultWorkspaceId", "createdAt"]
+    },
+    "Workspace": {
+      "title": "Workspace",
+      "description": "Isolated B2B tenant workspace containing white-label branding and AI agent rules.",
+      "type": "object",
+      "properties": {
+        "workspaceId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "agentName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "systemInstruction": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "businessRules": {
+          "type": "string",
+          "maxLength": 4000
+        },
+        "accentColor": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}$",
+          "maxLength": 7
+        },
+        "defaultTemplate": {
+          "type": "string",
+          "enum": ["lead_qualification", "support_triage", "contract_analysis"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "workspaceId",
+        "ownerId",
+        "name",
+        "agentName",
+        "systemInstruction",
+        "businessRules",
+        "accentColor",
+        "defaultTemplate",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "WorkflowRun": {
+      "title": "WorkflowRun",
+      "description": "Auditable execution record of a Gemini AI workflow invocation.",
+      "type": "object",
+      "properties": {
+        "runId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "workspaceId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "templateId": {
+          "type": "string",
+          "enum": ["lead_qualification", "support_triage", "contract_analysis"]
+        },
+        "locale": {
+          "type": "string",
+          "enum": ["en", "pt", "es"]
+        },
+        "inputTitle": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 180
+        },
+        "inputPayload": {
+          "type": "object"
+        },
+        "outputJson": {
+          "type": "object"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["completed", "failed"]
+        },
+        "latencyMs": {
+          "type": "integer"
+        },
+        "attempts": {
+          "type": "integer"
+        },
+        "modelUsed": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "runId",
+        "workspaceId",
+        "ownerId",
+        "templateId",
+        "locale",
+        "inputTitle",
+        "inputPayload",
+        "outputJson",
+        "status",
+        "latencyMs",
+        "attempts",
+        "modelUsed",
+        "createdAt"
+      ]
+    },
+    "ErrorLog": {
+      "title": "ErrorLog",
+      "description": "Dead-letter failure log recorded when workflow execution exhausts retries or encounters validation errors.",
+      "type": "object",
+      "properties": {
+        "logId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "workspaceId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "endpoint": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "templateId": {
+          "type": "string",
+          "enum": ["lead_qualification", "support_triage", "contract_analysis"]
+        },
+        "errorCode": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "errorMessage": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "attempts": {
+          "type": "integer"
+        },
+        "inputSummary": {
+          "type": "string",
+          "maxLength": 300
+        },
+        "resolved": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "logId",
+        "workspaceId",
+        "ownerId",
+        "endpoint",
+        "templateId",
+        "errorCode",
+        "errorMessage",
+        "attempts",
+        "inputSummary",
+        "resolved",
+        "createdAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Private user profile documents isolated to the authenticated user."
+    },
+    "/workspaces/{workspaceId}": {
+      "schema": { "$ref": "#/entities/Workspace" },
+      "description": "Tenant workspaces storing white-label brand settings and AI system instructions."
+    },
+    "/workflow_runs/{runId}": {
+      "schema": { "$ref": "#/entities/WorkflowRun" },
+      "description": "Persistent history of AI workflow executions scoped by workspaceId and ownerId."
+    },
+    "/error_logs/{logId}": {
+      "schema": { "$ref": "#/entities/ErrorLog" },
+      "description": "Dead-letter error logs for failed workflow executions scoped by workspaceId and ownerId."
+    }
+  }
+}
